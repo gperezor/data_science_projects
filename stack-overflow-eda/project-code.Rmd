@@ -1,0 +1,116 @@
+---
+title: "Exploring Stack Overflow Data"
+author: "Cindy Q"
+date: "June 15, 2017"
+output: html_document
+---
+
+## Load Data and Packages
+```{r, message=FALSE, warning=FALSE}
+#load packages 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, fig.width = 7, fig.height = 5)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(rworldmap)
+library(ggmap)
+library(ggalt)
+library(maptools)
+library(maps)
+data <- read.csv("survey_results_public.csv", stringsAsFactors = FALSE, na.strings = c("", "NA"))
+```
+
+
+```{r, echo=TRUE}
+str(data)
+```
+
+## Univariate Analysis
+
+The `Stack Overflow` data has 51,392 observations and 154 variables, it is a really big data set. So I will start analysing unique variables. 
+
+#### Geography
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+# First check how spread the users are around the world
+countries <- data %>% group_by(Country) %>% summarise(Total = round(n()))
+names(countries) <- c("country", "value")
+countrycode <- geocode(countries$country)
+country.x <- countrycode$lon
+country.y <- countrycode$lat
+
+#Using ggplot2, plot the Base World Map
+mp <- NULL
+mapWorld <- borders("world", colour="gray50", fill="gray50") # create a layer of borders
+mp <- ggplot() +   mapWorld
+
+#Now Layer the countries on top
+mp <- mp+ geom_point(aes(x=country.x, y=country.y) ,color="blue", size=3) 
+mp
+```
+
+
+```{r, echo=TRUE, message=FALSE, warning= FALSE}
+#Use a world map to show the scale of users from each country
+
+n <- joinCountryData2Map(countries, joinCode="NAME", nameJoinColumn="country")
+mapCountryData(n, nameColumnToPlot="value", colourPalette="palette", 
+               addLegend=TRUE, oceanCol="lightblue", missingCountryCol="white",
+               mapTitle="Stack Overflow User Around World")
+
+```
+
+#### Development Environments Ranking
+```{r, echo=TRUE}
+# Data Prep
+ide <- data %>% group_by(IDE) %>% summarise(Total = round(n()))
+ide1 <- separate_rows(ide, IDE, sep = ";")
+ide1$IDE <- trimws(ide1$IDE)
+ide3 <- ide1 %>% group_by(IDE) %>% summarise(Total = round(n())) %>% filter(!is.na(IDE))
+theme_set(theme_bw())
+ide3$total <- round((ide3$Total - mean(ide3$Total))/sd(ide3$Total), 2)  # compute normalized total
+ide3$total_type <- ifelse(ide3$total < 0, "below", "above")  # above / below avg flag
+ide3 <- ide3[order(ide3$total), ]  # sort
+ide3$IDE <- factor(ide3$IDE, levels = ide3$IDE)  # convert to factor to retain sorted order in plot.
+
+# Diverging Barcharts
+ggplot(ide3, aes(x=IDE, y=total, label=total)) + 
+  geom_bar(stat='identity', aes(fill=total_type), width=.5)  +
+  scale_fill_manual(name="Users", 
+                    labels = c("Above Average", "Below Average"), 
+                    values = c("above"="#00ba38", "below"="#f8766d")) + 
+  labs(subtitle="Normalised users from 'IDEs'", 
+       title= "Diverging Bars") + 
+  coord_flip()
+```
+
+
+#### Language Used by Female
+Since I am a female myself, I would like to know which language is used most by female.
+```{r, echo=TRUE, fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+language <- data %>% filter(grepl("Female", Gender)) %>% 
+  group_by(HaveWorkedLanguage) %>% summarise(Total = round(n()))
+language1 <- separate_rows(language, HaveWorkedLanguage, sep = ";")
+language1$HaveWorkedLanguage <- trimws(language1$HaveWorkedLanguage)
+language2 <- language1 %>% group_by(HaveWorkedLanguage) %>% summarise(Total = round(n())) %>%
+  filter(HaveWorkedLanguage != "Assembly")
+language3 <- language2[order(language2$Total), ]
+language3$HaveWorkedLanguage <- factor(language3$HaveWorkedLanguage, levels = language3$HaveWorkedLanguage)  # convert to factor to retain sorted order in plot.
+# Circular bar plot :
+ggplot(language3, aes(x =HaveWorkedLanguage  , y = Total,fill = HaveWorkedLanguage )) + 
+    geom_bar(width = 0.85, stat="identity") +
+    coord_polar(theta = "y") +    
+    xlab("") + ylab("") +
+    ylim(c(0,800)) + 
+    geom_text(data = language3, hjust = 1, size = 3, aes(x = HaveWorkedLanguage, y = 0, label = HaveWorkedLanguage )) +
+    theme(legend.position = "right", axis.text.y = element_blank() , axis.ticks = element_blank())
+
+```
+
+
+
+
+
+
+
+
+
