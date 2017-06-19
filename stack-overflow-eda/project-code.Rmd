@@ -15,8 +15,8 @@ library(tidyr)
 library(rworldmap)
 library(ggmap)
 library(ggalt)
-library(maptools)
 library(maps)
+library(maptools)
 data <- read.csv("survey_results_public.csv", stringsAsFactors = FALSE, na.strings = c("", "NA"))
 ```
 
