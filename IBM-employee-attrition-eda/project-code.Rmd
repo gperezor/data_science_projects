@@ -1,0 +1,243 @@
+---
+title: "Factors Attribute to Employee Attrition"
+author: Cindy Q
+date: "June 21, 2017"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    theme: journal
+---
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+setwd("C:/Users/rdqiuxin/Downloads")
+data <- read.csv("WA_Fn-UseC_-HR-Employee-Attrition.csv", stringsAsFactors = F)
+```
+Please do not hesitate to comment and provide your suggestions, they would be really valuable for me. 
+
+## The Data
+
+The data set comes from project "IBM HR Analytics Employee Attrition & Performance", one can find it on Kaggle.com. It was IBM's fictional dataset, so no NA was introduced into the data.
+In this dataset, we want to report the charateristics of the attrition employees vs the stayed employees.
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+library(fmsb)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(scales)
+library(dummy)
+```
+
+```{r}
+# show data general information before analysis
+str(data)
+```
+
+
+## How company's objective factors influence whether one chooses to stay ?
+First, we want to explore how the company objective factors influence in attition employees, and what kind of working enviroment most will cause employees leave. The objective fators would include `BusinessTravel`, `DistanceFromHome`,  `OverTime`, `PercentSalaryHike`, `StockOptionLevel`, `MonthlyIncome`.
+
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+# check seleted variable types and category
+data3 <- data %>% 
+  select(Attrition, BusinessTravel, DistanceFromHome, OverTime, PercentSalaryHike, StockOptionLevel,
+         MonthlyIncome)
+table(data3$BusinessTravel)
+table(data3$OverTime)
+summary(data3$DistanceFromHome)
+
+```
+
+```{r}
+# Since the chosen factors are in different scale, standard their scale would be the first thing to do.
+data$travel_score <- ifelse(data$BusinessTravel == "Non-Travel", 0,
+                             ifelse(data$BusinessTravel == "Travel_Rarely", 1, 2))
+data$overtime_score <- ifelse(data$OverTime == "Yes", 1, 0)
+
+attrition2 <- data %>% 
+  group_by(Attrition) %>%
+  select(Attrition, travel_score, DistanceFromHome, overtime_score, PercentSalaryHike, StockOptionLevel,MonthlyIncome, TrainingTimesLastYear)
+#create a function to scale the data between 0 to 1.
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+attrition2$travel_score <- range01(attrition2$travel_score)
+attrition2$DistanceFromHome <- range01(attrition2$DistanceFromHome)
+attrition2$overtime_score <- range01(attrition2$overtime_score)
+attrition2$PercentSalaryHike <- range01(attrition2$PercentSalaryHike)
+attrition2$StockOptionLevel <- range01(attrition2$StockOptionLevel)
+attrition2$MonthlyIncome <- range01(attrition2$MonthlyIncome)
+attrition2$TrainingTimesLastYear <- range01(attrition2$TrainingTimesLastYear)
+
+
+attrition2 <- 
+attrition2 %>%
+  group_by(Attrition) %>%
+  summarise(BusinessTravel = mean(travel_score), DistanceFromHome  = mean(DistanceFromHome), OverTime = mean(overtime_score), PercentSalaryHike = mean(PercentSalaryHike), StockOptionLevel = mean(StockOptionLevel), MonthlyIncome = mean(MonthlyIncome), TrainingTimesLastYear = mean(TrainingTimesLastYear))
+
+attrition2forplot <- attrition2 %>% 
+  select(-Attrition)
+maxmin_2 <- data.frame(
+ BusinessTravel = c(1, 0),
+ DistanceFromHome = c(1, 0),
+ OverTime = c(1, 0),
+ PercentSalaryHike = c(1, 0),
+ StockOptionLevel = c(1, 0),
+ MonthlyIncome = c(1, 0),
+ TrainingTimesLastYear = c(1, 0))
+
+attrition3 <- rbind(maxmin_2, attrition2forplot)
+radarchart(attrition3 ,
+           pty = 32,
+           axistype = 0,
+           pcol = c(adjustcolor("#eeb422", 0.5), adjustcolor("#225cee", 0.5)),
+           pfcol = c(adjustcolor("#eeb422", 0.5), adjustcolor("#225cee", 0.5)),
+           plty = 1,
+           plwd = 3,
+           cglty = 1,
+           cglcol = "gray88",
+           centerzero = TRUE,
+           seg = 5,
+           vlcex = 0.75,
+           palcex = 0.75)
+legend("topleft", 
+       c("Stay", "Attrition"),
+       fill = c(adjustcolor("#eeb422", 0.5), adjustcolor("#225cee", 0.5)))
+
+```
+
+### Conclusion
+From the chart above, we can clearly see the in attrition employees have higher chances of business travel, work overtime, and longer commute distance. However, they have lower monthly income, percent salary hike, traing time and stock option level.
+Which all pretty make sense, and since this is a fictional data set created by data scientists at IBM, all the data are making perfectly logical sense. 
+
+## Sensation & Perfomance level comparison for employees lost in attrition and employees who stay.
+
+Next, let's take a look at the performance and statisfaction level of employees lost in attrition and stay. I will evaluate in 5 perspectives, `EnvironmentSatisfaction`, `JobInvolvement`, `PerformanceRating`, `RelationshipSatisfaction` and `WorkLifeBalance`. Also, those factors were all range from 1 to 4, then no need to standard the scale before analysis.
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+# check whether there would be NAs or zeros in each the evaluation variables.
+data2 <- data %>% 
+  select(Attrition, EnvironmentSatisfaction, JobInvolvement,PerformanceRating, RelationshipSatisfaction, WorkLifeBalance)
+sum(is.na(data2$Attrition))
+sum(is.na(data2$EnvironmentSatisfaction))
+sum(is.na(data2$JobInvolvement))
+sum(is.na(data2$PerformanceRating))
+sum(is.na(data2$RelationshipSatisfaction))
+sum(is.na(data2$WorkLifeBalance))
+summary(data2$EnvironmentSatisfaction)
+summary(data2$JobInvolvement)
+summary(data2$PerformanceRating)
+summary(data2$RelationshipSatisfaction)
+summary(data2$WorkLifeBalance)
+```
+
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+# Since there are no NAs and zeros in the evaluation columns, then we can use a radar chart to represent the evaluation metrics.
+
+attrition <- data2 %>% 
+  group_by(Attrition) %>% 
+  summarise(EnvironmentSatisfaction = mean(EnvironmentSatisfaction), JobInvolvement = mean(JobInvolvement), PerformanceRating = mean(PerformanceRating), RelationshipSatisfaction = mean(RelationshipSatisfaction), WorkLifeBalance = mean(WorkLifeBalance))
+
+attritionforplot <-
+attrition %>% 
+  select(-Attrition)
+ 
+maxmin <- data.frame(
+ EnvironmentSatisfaction = c(4, 0),
+ JobInvolvement = c(4, 0),
+ PerformanceRating = c(4, 0),
+ RelationshipSatisfaction = c(4, 0),
+ WorkLifeBalance = c(4, 0))
+
+attrition1 <- rbind(maxmin, attritionforplot)
+radarchart(attrition1 ,
+           pty = 32,
+           axistype = 0,
+           pcol = c(adjustcolor("#8ee5ee", 0.5), adjustcolor("#ee978e", 0.5)),
+           pfcol = c(adjustcolor("#8ee5ee", 0.5), adjustcolor("#ee978e", 0.5)),
+           plty = 1,
+           plwd = 3,
+           cglty = 1,
+           cglcol = "gray88",
+           centerzero = TRUE,
+           seg = 5,
+           vlcex = 0.75,
+           palcex = 0.75)
+legend("topleft", 
+       c("Stay", "Attrition"),
+       fill = c(adjustcolor("#8ee5ee", 0.5), adjustcolor("#ee978e", 0.5)))
+```
+
+### Conclusion
+We can find the lost in attrition employees tend to have better perfomance, but less enviromental satisfaction,less job involvement, less relationship satisfaction and less work balance compared to the stayed employees.
+
+## Would education field be an important factor for employees leaving? 
+
+```{r}
+data_edu_yes <- data %>% filter(Attrition == "Yes") %>% select(EducationField)
+data_edu_no <- data %>% filter(Attrition == "No") %>% select(EducationField)
+
+data_edu_yes <- dummy(data_edu_yes)
+data_edu_yes <- sapply(data_edu_yes, as.numeric)
+data_edu_yes <- as.data.frame(data_edu_yes)
+data_edu_yes$Attrition <- c("Yes")
+
+data_edu_no <- dummy(data_edu_no)
+data_edu_no <- sapply(data_edu_no, as.numeric)
+data_edu_no <- as.data.frame(data_edu_no)
+data_edu_no$Attrition <- c("No")
+
+data4 <- rbind(data_edu_yes, data_edu_no)
+
+attrition4 <- 
+data4 %>%
+  group_by(Attrition) %>%
+  summarise(Human.Resources = mean(EducationField_Human.Resources), Life.Sciences  = mean(EducationField_Life.Sciences), Marketing = mean(EducationField_Marketing), Medical = mean(EducationField_Medical), Other = mean(EducationField_Other), Technical.Degree = mean(EducationField_Technical.Degree))
+
+attrition4forplot <- attrition4 %>% 
+  select(-Attrition)
+maxmin_4 <- data.frame(
+ Human.Resources = c(2, 0),
+ Life.Sciences = c(2, 0),
+ Marketing = c(2, 0),
+ Medical = c(2, 0),
+ Other = c(2, 0),
+ Technical.Degree = c(2, 0))
+
+attrition4 <- rbind(maxmin_4, attrition4forplot)
+radarchart(attrition4 ,
+           pty = 32,
+           axistype = 0,
+           pcol = c(adjustcolor("#e5fda9", 0.5), adjustcolor("#85c5dd", 0.5)),
+           pfcol = c(adjustcolor("#e5fda9", 0.5), adjustcolor("#85c5dd", 0.5)),
+           plty = 1,
+           plwd = 3,
+           cglty = 1,
+           cglcol = "gray88",
+           centerzero = TRUE,
+           seg = 5,
+           vlcex = 0.75,
+           palcex = 0.75)
+legend("topleft", 
+       c("Stay", "Attrition"),
+       fill = c(adjustcolor("#e5fda9", 0.5), adjustcolor("#85c5dd", 0.5)))
+```
+
+### Conclusion
+Education field seems cannot tell too much about the two categories. But from the chart we can conclude, the company has more employees with the life science background and less employees with the 
+human resources background.
+
+
+
+
+
+
