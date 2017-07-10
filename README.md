@@ -2,7 +2,7 @@
 
 Data science project code 
 
-- **IBM-employee-attrition-eda** (Using R Mardown, data cleaning, feature engineering, regulization, visualization) - Submitted to Kaggle (https://www.kaggle.com/cindy625/factors-attribute-to-employee-attrition)
+- **IBM-employee-attrition-eda** (Using R Mardown, data cleaning, feature engineering, regulization, visualization) - [Submitted to Kaggle](https://www.kaggle.com/cindy625/factors-attribute-to-employee-attrition)
 
 - **chicago-house-price-prediction** (Using Python, data cleaning, feature engineering, KNN)
 
